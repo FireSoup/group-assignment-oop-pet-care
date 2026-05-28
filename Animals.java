@@ -37,12 +37,13 @@ public abstract class Animals {
         super(petId,petName,petAge,petWeight);
     }
 
-    //Defines species for Dog and Cat
+    //Defines species for Dog
     public String getSpecies(){
         return "Dog";
+        }
     }
-    }
-        class Cat extends Mammals{
+        //cat class
+    class Cat extends Mammals{
             public Cat(String petId, String petName, int petAge, double petWeight){
         super(petId,petName,petAge,petWeight);
     }
@@ -50,6 +51,6 @@ public abstract class Animals {
     //Defines species for Cat
     public String getSpecies(){
         return "Cat";
-    }
+        }
     }
 }
