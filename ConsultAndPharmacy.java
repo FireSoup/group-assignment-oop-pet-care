@@ -1,7 +1,7 @@
 package petcare1; 
 
 
-public class packagedeveloper5 {
+public class ConsultAndPharmacy {
     public void infoModul() {
         System.out.println("====== MODUL 5: ACTIVE CONSULTATION & PHARMACY ======");
     }
