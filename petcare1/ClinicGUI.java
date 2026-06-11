@@ -155,6 +155,13 @@ public class ClinicGUI extends JFrame {
             clientSelectionCombo.addItem(newOwner.getName() + " [" + newOwner.getId() + "]");
             JOptionPane.showMessageDialog(this, "Client Registered Successfully!");
             refreshDatabaseView();
+            
+            // CLEAR FIELDS AFTER SUCCESS
+            clientNameField.setText("");
+            clientPhoneField.setText("");
+            clientAddressField.setText("");
+            clientEmailField.setText("");
+            paymentCombo.setSelectedIndex(0);
         });
 
         registerPetBtn.addActionListener(e -> {
@@ -185,12 +192,14 @@ public class ClinicGUI extends JFrame {
                 
                 JOptionPane.showMessageDialog(this, name + " registered!");
                 refreshDatabaseView();
+                
+                // CLEAR FIELDS AFTER SUCCESS
+                petNameField.setText("");
+                petAgeField.setText("");
+                petWeightField.setText("");
             } catch (Exception ex) { JOptionPane.showMessageDialog(this, "Check numbers for age/weight!"); }
         });
 
-        // ==========================================
-        // THE FIX: UPDATE DROPDOWNS DYNAMICALLY
-        // ==========================================
         editPetBtn.addActionListener(e -> {
             if (editPetCombo.getItemCount() == 0) return;
             int idx = editPetCombo.getSelectedIndex(); 
@@ -199,19 +208,15 @@ public class ClinicGUI extends JFrame {
                 String newAgeStr = JOptionPane.showInputDialog(this, "Update Age for " + pet.petName + ":", pet.petAge);
                 String newWeightStr = JOptionPane.showInputDialog(this, "Update Weight (kg) for " + pet.petName + ":", pet.petWeight);
                 if (newAgeStr != null && newWeightStr != null) {
-                    // Update the object in memory
                     pet.petAge = Integer.parseInt(newAgeStr);
                     pet.petWeight = Double.parseDouble(newWeightStr);
                     
-                    // Generate the brand new text string
                     String updatedEntry = pet.getAnimalInfo() + " (Owner: " + petToOwnerMap.get(idx).getName() + ")";
                     
-                    // Force the Tab 2 dropdown to update and re-select the edited pet
                     editPetCombo.removeItemAt(idx);
                     editPetCombo.insertItemAt(updatedEntry, idx);
                     editPetCombo.setSelectedIndex(idx);
                     
-                    // Force the Tab 4 (Billing) dropdown to update without changing the currently viewed pet
                     int currentBillingIdx = billingPetCombo.getSelectedIndex();
                     billingPetCombo.removeItemAt(idx);
                     billingPetCombo.insertItemAt(updatedEntry, idx);
@@ -259,6 +264,7 @@ public class ClinicGUI extends JFrame {
             
             historyArea.setText(""); 
             
+            // 1. ADD ITEMS TO THE INVOICE
             if (visitType.equals("Vaccination")) {
                 Vaccine selectedVaccine = allVaccines.get(itemIdx); 
                 
@@ -285,7 +291,6 @@ public class ClinicGUI extends JFrame {
                 boolean hasEnoughStock = selectedMed.getStockLevel() >= requiredPills;
                 
                 historyArea.append(cRec.dispenseMedication(rx, requiredPills)); 
-                
                 record.addConsultation(cRec);
                 invoice.addItem(cRec); 
                 
@@ -294,9 +299,52 @@ public class ClinicGUI extends JFrame {
                 }
             }
 
+            // 2. PAYMENT & DISCOUNT LOGIC
+            // Ask if they want to apply a 10% discount promo
+            int applyPromo = JOptionPane.showConfirmDialog(this, "Apply 10% Clinic Promo Discount?", "Discount", JOptionPane.YES_NO_OPTION);
+            if (applyPromo == JOptionPane.YES_OPTION) {
+                invoice.applyDiscount(10.0);
+            }
+
+            double totalDue = invoice.calculateTotal();
+            String method = owner.getPaymentMethod();
+
+            if (method.equals("Cash")) {
+                // Ask user to input the cash amount handed over
+                String cashStr = JOptionPane.showInputDialog(this, 
+                    String.format("Total Due: RM %.2f\nPayment Method: Cash\n\nEnter amount tendered by %s:", totalDue, owner.getName()), 
+                    "Cash Payment", JOptionPane.QUESTION_MESSAGE);
+                
+                if (cashStr != null && !cashStr.isEmpty()) {
+                    try {
+                        double cashTendered = Double.parseDouble(cashStr);
+                        if (invoice.processPayment(cashTendered)) {
+                            double change = cashTendered - totalDue;
+                            JOptionPane.showMessageDialog(this, String.format("Payment Successful!\nChange Due: RM %.2f", change), "Transaction Complete", JOptionPane.INFORMATION_MESSAGE);
+                        } else {
+                            JOptionPane.showMessageDialog(this, "Insufficient cash provided! Invoice saved as UNPAID.", "Payment Failed", JOptionPane.WARNING_MESSAGE);
+                        }
+                    } catch (NumberFormatException ex) {
+                        JOptionPane.showMessageDialog(this, "Invalid number entered. Invoice saved as UNPAID.", "Error", JOptionPane.ERROR_MESSAGE);
+                    }
+                } else {
+                    JOptionPane.showMessageDialog(this, "Payment cancelled. Invoice saved as UNPAID.", "Transaction Cancelled", JOptionPane.WARNING_MESSAGE);
+                }
+            } else {
+                // Automatically approve Cards, E-Wallets, or Insurance
+                JOptionPane.showMessageDialog(this, 
+                    String.format("Processing %s for RM %.2f...\n\nPayment Approved!", method, totalDue), 
+                    "Digital Payment System", JOptionPane.INFORMATION_MESSAGE);
+                invoice.processPayment(totalDue); 
+            }
+
+            // 3. GENERATE FINAL RECEIPT & CLEAN UP
             receiptArea.setText(invoice.generateReceipt());
             historyArea.append("\n" + record.getMedicalHistorySummary());
             refreshDatabaseView();
+            
+            // Clear Treatment Field after success
+            symptomsField.setText("");
         });
     }
 
