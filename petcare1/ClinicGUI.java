@@ -53,7 +53,7 @@ public class ClinicGUI extends JFrame {
         clientPanel.add(new JLabel("")); clientPanel.add(registerClientBtn);
 
         // ==========================================
-        // TAB 2: PET REGISTRATION & EDITING
+        // TAB 2: PET REGISTRATION, EDITING & DELETING
         // ==========================================
         JPanel petPanel = new JPanel(new BorderLayout(10, 10));
         petPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
@@ -69,12 +69,21 @@ public class ClinicGUI extends JFrame {
         petForm.add(new JLabel("")); petForm.add(registerPetBtn);
         
         JPanel editPanel = new JPanel(new BorderLayout(10, 10));
-        editPanel.setBorder(BorderFactory.createTitledBorder("Edit Existing Pet"));
+        editPanel.setBorder(BorderFactory.createTitledBorder("Manage Existing Pets"));
         editPetCombo = new JComboBox<>(); 
-        JButton editPetBtn = new JButton("Edit Selected Pet (Age/Weight)");
+        
+        // NEW: Action buttons split panel
+        JButton editPetBtn = new JButton("Edit Pet (Age/Weight)");
+        JButton removePetBtn = new JButton("Remove Pet (Delete)");
+        removePetBtn.setForeground(Color.RED); // Highlight the delete button
+        
+        JPanel actionBtns = new JPanel(new GridLayout(1, 2, 5, 5));
+        actionBtns.add(editPetBtn);
+        actionBtns.add(removePetBtn);
+
         editPanel.add(new JLabel("Select Pet:"), BorderLayout.WEST);
         editPanel.add(editPetCombo, BorderLayout.CENTER);
-        editPanel.add(editPetBtn, BorderLayout.SOUTH);
+        editPanel.add(actionBtns, BorderLayout.SOUTH);
         
         petPanel.add(petForm, BorderLayout.NORTH);
         petPanel.add(editPanel, BorderLayout.SOUTH);
@@ -156,11 +165,7 @@ public class ClinicGUI extends JFrame {
             JOptionPane.showMessageDialog(this, "Client Registered Successfully!");
             refreshDatabaseView();
             
-            // CLEAR FIELDS AFTER SUCCESS
-            clientNameField.setText("");
-            clientPhoneField.setText("");
-            clientAddressField.setText("");
-            clientEmailField.setText("");
+            clientNameField.setText(""); clientPhoneField.setText(""); clientAddressField.setText(""); clientEmailField.setText("");
             paymentCombo.setSelectedIndex(0);
         });
 
@@ -193,10 +198,7 @@ public class ClinicGUI extends JFrame {
                 JOptionPane.showMessageDialog(this, name + " registered!");
                 refreshDatabaseView();
                 
-                // CLEAR FIELDS AFTER SUCCESS
-                petNameField.setText("");
-                petAgeField.setText("");
-                petWeightField.setText("");
+                petNameField.setText(""); petAgeField.setText(""); petWeightField.setText("");
             } catch (Exception ex) { JOptionPane.showMessageDialog(this, "Check numbers for age/weight!"); }
         });
 
@@ -226,6 +228,39 @@ public class ClinicGUI extends JFrame {
                     refreshDatabaseView();
                 }
             } catch (Exception ex) { JOptionPane.showMessageDialog(this, "Invalid numbers!"); }
+        });
+
+        // NEW FEATURE: REMOVE/DELETE PET
+        removePetBtn.addActionListener(e -> {
+            if (editPetCombo.getItemCount() == 0) return;
+            int idx = editPetCombo.getSelectedIndex(); 
+            
+            Animals pet = globalPetList.get(idx);
+            PetOwner owner = petToOwnerMap.get(idx);
+            
+            // Ask for confirmation before deleting
+            int confirm = JOptionPane.showConfirmDialog(this, 
+                "Are you sure you want to permanently remove " + pet.petName + " from the system?", 
+                "Confirm Deletion", 
+                JOptionPane.YES_NO_OPTION, 
+                JOptionPane.WARNING_MESSAGE);
+                
+            if (confirm == JOptionPane.YES_OPTION) {
+                // 1. Remove from the PetOwner's personal list
+                owner.removePet(pet);
+                
+                // 2. Remove from global tracking arrays
+                globalPetList.remove(idx);
+                petToOwnerMap.remove(idx);
+                globalMedicalRecords.remove(idx);
+                
+                // 3. Remove from UI dropdowns
+                editPetCombo.removeItemAt(idx);
+                billingPetCombo.removeItemAt(idx);
+                
+                JOptionPane.showMessageDialog(this, "Pet successfully removed from database.");
+                refreshDatabaseView();
+            }
         });
 
         addAllergyBtn.addActionListener(e -> {
@@ -264,7 +299,6 @@ public class ClinicGUI extends JFrame {
             
             historyArea.setText(""); 
             
-            // 1. ADD ITEMS TO THE INVOICE
             if (visitType.equals("Vaccination")) {
                 Vaccine selectedVaccine = allVaccines.get(itemIdx); 
                 
@@ -299,8 +333,6 @@ public class ClinicGUI extends JFrame {
                 }
             }
 
-            // 2. PAYMENT & DISCOUNT LOGIC
-            // Ask if they want to apply a 10% discount promo
             int applyPromo = JOptionPane.showConfirmDialog(this, "Apply 10% Clinic Promo Discount?", "Discount", JOptionPane.YES_NO_OPTION);
             if (applyPromo == JOptionPane.YES_OPTION) {
                 invoice.applyDiscount(10.0);
@@ -310,7 +342,6 @@ public class ClinicGUI extends JFrame {
             String method = owner.getPaymentMethod();
 
             if (method.equals("Cash")) {
-                // Ask user to input the cash amount handed over
                 String cashStr = JOptionPane.showInputDialog(this, 
                     String.format("Total Due: RM %.2f\nPayment Method: Cash\n\nEnter amount tendered by %s:", totalDue, owner.getName()), 
                     "Cash Payment", JOptionPane.QUESTION_MESSAGE);
@@ -331,19 +362,15 @@ public class ClinicGUI extends JFrame {
                     JOptionPane.showMessageDialog(this, "Payment cancelled. Invoice saved as UNPAID.", "Transaction Cancelled", JOptionPane.WARNING_MESSAGE);
                 }
             } else {
-                // Automatically approve Cards, E-Wallets, or Insurance
                 JOptionPane.showMessageDialog(this, 
                     String.format("Processing %s for RM %.2f...\n\nPayment Approved!", method, totalDue), 
                     "Digital Payment System", JOptionPane.INFORMATION_MESSAGE);
                 invoice.processPayment(totalDue); 
             }
 
-            // 3. GENERATE FINAL RECEIPT & CLEAN UP
             receiptArea.setText(invoice.generateReceipt());
             historyArea.append("\n" + record.getMedicalHistorySummary());
             refreshDatabaseView();
-            
-            // Clear Treatment Field after success
             symptomsField.setText("");
         });
     }
