@@ -16,13 +16,13 @@ public class PetOwner {
     }
 
     public void addPet(Animals pet) { petList.add(pet); }
+    
+    // NEW: Method to allow deleting a pet from the owner's profile
+    public void removePet(Animals pet) { petList.remove(pet); }
 
     public String getId() { return id; }
     public String getName() { return name; }
-    
-    // THIS LINE IS CRITICAL TO PREVENT THE CRASH IN YOUR SCREENSHOT
     public String getPaymentMethod() { return paymentMethod; } 
-    
     public LocalDate getRegistrationDate() { return registrationDate; }
     public List<Animals> getPetList() { return petList; }
 
